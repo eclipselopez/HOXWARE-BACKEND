@@ -1,0 +1,35 @@
+api:
+  identifier: IDENTIFIER
+  port: API_PORT
+
+logger:
+  options:
+    level: PINO_LEVEL
+
+mongodb:
+  url: MONGODB_URL
+  database: MONGODB_DATABASE
+  scheme: MONGODB_SCHEME
+  hostname: MONGO_SVC_SERVICE_HOST
+  port: MONGO_SVC_SERVICE_PORT
+  timeout: MONGODB_TIMEOUT
+  options:
+    useUnifiedTopology: MONGODB_TOPOLOGY
+    useNewUrlParser: MONGODB_URLPARSER
+    authMechanism: MONGODB_AUTHMECHANISM
+    user: MONGODB_USER
+    pass: MONGODB_PASS
+    authSource: MONGODB_AUTHSOURCE
+
+crypto:
+  auth_secret: AUTH_SECRET
+  auth_ttl: AUTH_TTL
+  auth_algorithm: AUTH_ALGORITHM
+  auth_inputEncoding: INPUT_ENCODING
+  auth_outputEncoding: OUTPUT_ENCODING
+
+jwt:
+  accessTokenSecret: ACCESS_TOKEN_SECRET
+  refreshTokenSecret: REFRESH_TOKEN_SECRET
+  accessTokenLife: ACCESS_TOKEN_LIFE
+  refreshTokenLife: REFRESH_TOKEN_LIFE

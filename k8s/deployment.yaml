@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: NAME
+  namespace: rtp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: NAME
+  template:
+    metadata:
+      labels:
+        app: NAME
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: NAME
+        image: IMAGE
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5001
+        env:
+        - name: ACCESS_TOKEN_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-config
+              key: accessTokenSecret
+        - name: REFRESH_TOKEN_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-config
+              key: refreshTokenSecret
+        - name: ACCESS_TOKEN_LIFE
+          valueFrom:
+            secretKeyRef:
+              name: jwt-config
+              key: accessTokenLife
+        - name: REFRESH_TOKEN_LIFE
+          valueFrom:
+            secretKeyRef:
+              name: jwt-config
+              key: refreshTokenLife
+        # Start pino config
+        - name: PINO_LEVEL
+          value: "trace"
+        End pino config
+        Start mongodb config
+        - name: MONGODB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mongo-creds
+              key: username
+        - name: MONGODB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: mongo-creds
+              key: password
+        - name: MONGODB_URL
+          valueFrom:
+            secretKeyRef:
+              name: mongo-creds
+              key: url
+        - name: IDENTIFIER
+          value: NAME
+        - name: API_PORT
+          value: "5001"
+        - name: MONGODB_DATABASE
+          value: "jncommerce"
+        - name: MONGODB_TIMEOUT
+          value: "5000"
+        - name: MONGODB_AUTHSOURCE
+          value: "admin"
+        - name: MONGODB_TOPOLOGY
+          value: "true"
+        - name: MONGODB_URLPARSER
+          value: "true"
+        - name: MONGODB_AUTHMECHANISM
+          value: "SCRAM-SHA-1"
+        End mongodb config
+        - name: AUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: crypto-config
+              key: auth_secret
+        - name: AUTH_TTL
+          valueFrom:
+            secretKeyRef:
+              name: crypto-config
+              key: auth_ttl
+        - name: AUTH_ALGORITHM
+          valueFrom:
+            secretKeyRef:
+              name: crypto-config
+              key: auth_algorithm
+        - name: INPUT_ENCODING
+          valueFrom:
+            secretKeyRef:
+              name: crypto-config
+              key: auth_inputEncoding
+        - name: OUTPUT_ENCODING
+          valueFrom:
+            secretKeyRef:
+              name: crypto-config
+              key: auth_outputEncoding
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: NAME
+  namespace: toa
+spec:
+  selector:
+    app: NAME
+  ports:
+    - port: 5001
+      protocol: TCP
+      targetPort: 5001
