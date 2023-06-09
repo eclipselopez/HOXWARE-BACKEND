@@ -1,18 +1,18 @@
 api:
-  identifier: IDENTIFIER
-  port: API_PORT
+  identifier: HOWWARE
+  port: "5002"
 
 logger:
   options:
-    level: PINO_LEVEL
+    level: trace
 
 mongodb:
-  url: MONGODB_URL
-  database: MONGODB_DATABASE
-  scheme: MONGODB_SCHEME
-  hostname: MONGO_SVC_SERVICE_HOST
-  port: MONGO_SVC_SERVICE_PORT
-  timeout: MONGODB_TIMEOUT
+  url: mongodb://localhost:27017/hox
+  database: hoxwareTechno
+  scheme: mongodb
+  hostname: '127.0.0.1'
+  port: '27017'
+  timeout: '5000'
   options:
     useUnifiedTopology: MONGODB_TOPOLOGY
     useNewUrlParser: MONGODB_URLPARSER
@@ -22,14 +22,20 @@ mongodb:
     authSource: MONGODB_AUTHSOURCE
 
 crypto:
-  auth_secret: AUTH_SECRET
-  auth_ttl: AUTH_TTL
-  auth_algorithm: AUTH_ALGORITHM
-  auth_inputEncoding: INPUT_ENCODING
-  auth_outputEncoding: OUTPUT_ENCODING
+  auth_secret: "56gXxY{+D6/4m#kZ394j2=bT2eHqTAu>r8zAT>yEn:;TM#9*Vg"
+  auth_ttl: 86400 * 1000
+  auth_algorithm: "aes256"
+  auth_inputEncoding: "utf8"
+  auth_outputEncoding: "hex"
 
 jwt:
-  accessTokenSecret: ACCESS_TOKEN_SECRET
-  refreshTokenSecret: REFRESH_TOKEN_SECRET
-  accessTokenLife: ACCESS_TOKEN_LIFE
-  refreshTokenLife: REFRESH_TOKEN_LIFE
+  accessTokenSecret: "0d7c5c5f-768c-4d98-8900-13aadaa21937"
+  refreshTokenSecret: "1a7v8c0l-391k-1f82-4492-tha3taa11334"
+  accessTokenLife: "30d"
+  refreshTokenLife: 2592000
+
+email:
+  email_usuario: "soporte@hoxware.tech"
+  passEmail: "lobo48tft8030"
+  smtpHost: "hv44svg194.neubox.net"
+  smtpPort: 465
