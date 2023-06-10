@@ -6,6 +6,7 @@ import IResponse from '../interfaces/response.interface';
 import { verify } from 'jsonwebtoken';
 import ProjectService from './project.controller';
 import logger from '../../lib/logger';
+import config from 'config';
 
 const projectService = new ProjectService;
 
@@ -64,34 +65,34 @@ export default class AuthUserService {
                     return resolve(true)
                 }
             })
-        })
-    }
+        })
+    }
 
     async crearUsuario(usuario: any, admin: IUser, callback: Function ) {
         if ( !admin.id ) {
             return callback({ ok: false, message: 'No hay datos de admin', response: null, code: 400 });
         }
 
-        let licencia = await this.obtenerLicencia( admin.id );
-        console.log(licencia);
-        let password = await encriptar.passwordSeguro();
+        let license = await this.obtenerlicense( admin.id );
+        console.log(license);
+        let password = await this.encrypt.passwordSeguro();
 
-        const { salt, passwordHash } = await encriptar.generarPassword(password);
+        const { salt, passwordHash } = await this.encrypt.generarPassword(password);
 
         usuario.password = await passwordHash;
         usuario.salt = await salt;
-        usuario.empresa = await admin.empresa;
-        usuario.licencia = await licencia;
+        usuario.company = await admin.company;
+        usuario.license = await license;
 
-        Usuario.create( usuario, async( err: any, usuarioCreado: any ) => {
+        User.create( usuario, async( err: any, usuarioCreado: any ) => {
             if  ( err ) {
                 return callback({ ok: false, message: 'Error error en base de datos', response: err, code: 500 });
             }
 
-            encriptar.tokenEmail(usuarioCreado, async ( tokenGenerado: any ) => {
+            this.encrypt.tokenEmail(usuarioCreado, async ( tokenGenerado: any ) => {
                 const cuerpo = await `<p> Esta es tu contraseña para ingresar a la plataforma Hoxware : ${password} antes de ingresar, activa tu usuario confirmando tu correo con el siguiente link ${serverName}auth/${tokenGenerado} <p>`;
 
-                await email.enviarEmail(usuarioCreado.email, 'Alta de usuario nuevo', cuerpo);
+                await email.sendEmail(usuarioCreado.email, 'Alta de usuario nuevo', cuerpo);
                 return callback({ ok: true, message: 'Usuario creado con exito', response: usuarioCreado, code: 200 });
             })
         })
@@ -99,7 +100,7 @@ export default class AuthUserService {
 
     async login( email: string, password: string, callback: Function ): Promise<any> {
 
-        await Usuario.findOne( { email: email }, async(err: any, usuarioDB: any ) => {
+        await User.findOne( { email: email }, async(err: any, usuarioDB: any ) => {
             if ( err ) {
                 return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
@@ -108,11 +109,11 @@ export default class AuthUserService {
                 return callback({ ok: false, message: 'Datos incorrectos', response: null, code: 400 });
             }
 
-            /* if ( await this.verificarLicencia( usuarioDB.licencia ) ) {
-                return callback({ ok: false, message: 'Licencia expirada o incorrecta', response: null, code: 400 });
+            /* if ( await this.verificarlicense( usuarioDB.license ) ) {
+                return callback({ ok: false, message: 'license expirada o incorrecta', response: null, code: 400 });
             } */
 
-            const passwordHash = await encriptar.sha512(password, usuarioDB.salt);
+            const passwordHash = await this.encrypt.sha512(password, usuarioDB.salt);
 
             if ( usuarioDB.password !== passwordHash.passwordHash ) {
                 return callback({ ok: false, message: 'Datos incorrectos', response: err, code: 400 });
@@ -132,25 +133,16 @@ export default class AuthUserService {
                 apellidoP: usuarioDB.apellidoP,
                 apellidoM: usuarioDB.apellidoM,
                 email: usuarioDB.email,
-                empresa: usuarioDB.empresa,
+                company: usuarioDB.company,
                 role: usuarioDB.role
             }
 
-            await proyectoService.obtenerProyectosId( usuarioDB.empresa, usuarioDB._id, async ( responseP: IResponse ) => {
-                if ( responseP.code === 200 ) {
-                    await encriptar.generarToken( usuarioFront, async( responseT: any ) => {
-                        return callback({ ok: true, message: 'Usuario logueado con exito', response: null, code: 200, token: responseT, twoAuth: usuarioDB.twoAuth, proyectos: responseP.response });
-                    });
-                } else {
-                    return callback(responseP);
-                }
-            })
-
+            await projectService.getProyectById( usuarioDB.company, usuarioDB._id)
         })
     }
 
     async loginMovil( email: string, password: string, callback: Function ) {
-        await Usuario.findOne({ email: email }, async ( err: any, usuarioDB: any ) => {
+        await User.findOne({ email: email }, async ( err: any, usuarioDB: any ) => {
             if ( err ) {
                 return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
@@ -165,18 +157,18 @@ export default class AuthUserService {
                 apellidoP: usuarioDB.apellidoP,
                 apellidoM: usuarioDB.apellidoM,
                 email: usuarioDB.email,
-                empresa: usuarioDB.empresa,
+                company: usuarioDB.company,
                 role: usuarioDB.role
             }
 
-            encriptar.generarToken( usuarioFront, async( response: any ) => {
+            this.encrypt.generarToken( usuarioFront, async( response: any ) => {
                 return callback({ ok: true, message: 'Usuario logueado con exito', response: null, code: 200, token: response, twoAuth: usuarioDB.twoAuth });
             });
         });
     }
 
-    async activarLicencia(email: string, licencia: string, callback: Function) {
-        await Usuario.findOne({ email: email }, async (err: any, usuarioDB: any) => {
+    async activarlicense(email: string, license: string, callback: Function) {
+        await User.findOne({ email: email }, async (err: any, usuarioDB: any) => {
             if (err) {
                 return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
@@ -189,13 +181,13 @@ export default class AuthUserService {
                 return callback({ ok: false, message: 'Usuario inactivo, por favor verifica tu correo!', response: null, code: 403 });
             }
 
-            await verify( usuarioDB.licencia, jwt_accessTokenSecret, async ( err: any, decodificado: any ) => {
+            await verify( usuarioDB.license, config.get('jwt_accessTokenSecret'), async ( err: any, decodificado: any ) => {
                 if ( err ) {
-                    return callback({ ok: false, message: 'Error en licencia', response: err, code: 400 });
+                    return callback({ ok: false, message: 'Error en license', response: err, code: 400 });
                 }
 
-                if ( decodificado.licencia !== licencia ) {
-                    return callback({ ok: false, message: 'Licencia incorrecta', response: null, code: 401 });
+                if ( decodificado.license !== license ) {
+                    return callback({ ok: false, message: 'license incorrecta', response: null, code: 401 });
                 }
 
                 usuarioDB.status = 'ACTIVO';
@@ -204,22 +196,22 @@ export default class AuthUserService {
                         return callback({ ok: false, message: 'Error al actualizar usuario', response: err, code: 500 });
                     }
 
-                    return callback({ ok: true, message: 'Licencia activada', response: null, code: 200 });
+                    return callback({ ok: true, message: 'license activada', response: null, code: 200 });
                 })
             });
         });
     }
 
-    async verificaEmpresa(empresa: String): Promise<boolean> {
+    async verificacompany(company: String): Promise<boolean> {
         let existe: boolean = false;
 
-        await Usuario.findOne({ empresa: empresa }, (err: any, empresaDB: any) => {
+        await User.findOne({ company: company }, (err: any, companyDB: any) => {
             if (err) {
                 existe = true;
                 throw err;
             }
 
-            if (empresaDB) {
+            if (companyDB) {
                 return existe = true;
             }
 
@@ -229,8 +221,8 @@ export default class AuthUserService {
         return existe;
     }
 
-    async generarLicencia(): Promise<string> {
-        let licencia = '';
+    async generarlicense(): Promise<string> {
+        let license = '';
 
         let seg1 = 'GMNYD';
         let seg2 = await (0 | Math.random() * 9e6).toString(36).toUpperCase();
@@ -238,9 +230,9 @@ export default class AuthUserService {
         let seg4 = await (0 | Math.random() * 9e6).toString(36).toUpperCase();
         let seg5 = await (0 | Math.random() * 9e6).toString(36).toUpperCase();
 
-        licencia = await `${seg1}-${seg2}-${seg3}-${seg4}-${seg5}`;
+        license = await `${seg1}-${seg2}-${seg3}-${seg4}-${seg5}`;
 
-        return licencia;
+        return license;
     }
 
     async generarcode(): Promise<number> {
@@ -252,10 +244,10 @@ export default class AuthUserService {
         return code = await Math.random() * (max - min) + min;
     }
 
-    async verificarLicencia( licencia: string ): Promise<boolean> {
+    async verificarlicense( license: string ): Promise<boolean> {
         let response = true;
 
-        await verify(licencia, jwt_accessTokenSecret, async(err: any, decodificado: any) => {
+        await verify(license, config.get('jwt_accessTokenSecret'), async(err: any, decodificado: any) => {
             if ( err ) {
                 return response = await true;
             }
@@ -268,9 +260,9 @@ export default class AuthUserService {
         return await response;
     }
 
-    async obtenerLicencia( id: string ): Promise<string> {
+    async obtenerlicense( id: string ): Promise<string> {
         return new Promise(async(resolve, reject) => {
-            await Usuario.findOne({ _id: id }, async( err: any, usuarioDB: any ) => {
+            await User.findOne({ _id: id }, async( err: any, usuarioDB: any ) => {
                 if ( err ) {
                     console.log(err);
                     return reject(err);
@@ -280,20 +272,20 @@ export default class AuthUserService {
                     return reject(err);
                 }
 
-                return resolve(usuarioDB.licencia);
+                return resolve(usuarioDB.license);
             });
         })
     }
 
     async verificaTokenUsuario( token: string ): Promise<any> {
         return new Promise(async(resuelto, error ) => {
-            await verify(token, jwt_accessTokenSecret, async( err: any, decodificado: any ) => {
+            await verify(token, config.get('jwt_accessTokenSecret'), async( err: any, decodificado: any ) => {
                 if ( err ) {
                     return error('Token expirado');
                 }
 
                 console.log('decodificado',decodificado);
-                await Usuario.updateOne({ _id: decodificado.usuario._id }, { $set: { status: 'ACTIVO'}}, {}, ( err: any, usuarioAct: any ) => {
+                await User.updateOne({ _id: decodificado.usuario._id }, { $set: { status: 'ACTIVO'}}, {}, ( err: any, usuarioAct: any ) => {
                     if ( err ) {
                         return error( err );
                     }
@@ -305,7 +297,7 @@ export default class AuthUserService {
     }
 
     async reenviarCorreoAct( idUsuario: string, callback: Function ) {
-        Usuario.findOne({ _id: idUsuario }, async ( err: any, usuarioDB: any ) => {
+        User.findOne({ _id: idUsuario }, async ( err: any, usuarioDB: any ) => {
             if ( err ) {
                 return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
@@ -314,9 +306,9 @@ export default class AuthUserService {
                 return callback({ ok: false, message: 'Ocurrio un error', response: null, code: 404 });
             }
 
-            let password = await encriptar.passwordSeguro();
+            let password = await this.encrypt.passwordSeguro();
 
-            const { salt, passwordHash } = await encriptar.generarPassword(password);
+            const { salt, passwordHash } = await this.encrypt.generarPassword(password);
 
             usuarioDB.salt = salt;
             usuarioDB.password = passwordHash;
@@ -328,10 +320,10 @@ export default class AuthUserService {
                 usuarioDB.password.remove;
                 usuarioDB.salt.remove;
 
-                await encriptar.tokenEmail(usuarioDB, async ( tokenGenerado: any ) => {
+                await this.encrypt.tokenEmail(usuarioDB, async ( tokenGenerado: any ) => {
                     const cuerpo = await `<p> Esta es tu contraseña para ingresar a la plataforma Hoxware : ${password} antes de ingresar, activa tu usuario confirmando tu correo con el siguiente link ${serverName}auth/${tokenGenerado} <p>`;
     
-                    await email.enviarEmail(usuarioDB.email, 'Alta de usuario nuevo', cuerpo);
+                    await email.sendEmail(usuarioDB.email, 'Alta de usuario nuevo', cuerpo);
                     return callback({ ok: true, message: 'Usuario actualizado con exito', response: usuarioDB, code: 200 });
                 })
 
@@ -341,7 +333,8 @@ export default class AuthUserService {
     }
 
     async resetPassword( emailUsuario: string, callback: Function ) {
-        Usuario.findOne( { email: emailUsuario }, async ( err: any, usuarioDB: any ) => {
+        User.findOne( { email: emailUsuario }, async ( err: any, usuarioDB: any ) => {
+            const jwt = config.get('jwt_accessTokenSecret')
             if ( err ) {
                 return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
@@ -354,13 +347,13 @@ export default class AuthUserService {
 
             let payload = {
                 id,
-                jwt_refreshTokenSecret
+                jwt
             }
 
-            await encriptar.tokenEmail(payload, async ( tokenGenerado: any ) => {
+            await this.encrypt.tokenEmail(payload, async ( tokenGenerado: any ) => {
                 const cuerpo = await `<p>Haz solicitado reestablecer tu contraseña, si no fuiste tu haz caso omiso, de lo contrario da click en el siguiente link: ${serverName}auth/resetPwd/${ tokenGenerado } <p>`;
                 
-                await email.enviarEmail(usuarioDB.email, 'Solicitud de reestablecimiento de contraseña', cuerpo);
+                await email.sendEmail(usuarioDB.email, 'Solicitud de reestablecimiento de contraseña', cuerpo);
                 return callback({ ok: true, message: 'Solicitud de reestablecimiento de password enviada', response: null, code: 200 });
             });
 
@@ -369,18 +362,18 @@ export default class AuthUserService {
 
     async verficarResetPassword( token: string ): Promise<any> {
         return new Promise( async( response, error ) => {
-            await verify( token, jwt_accessTokenSecret, async( err: any, decodificado: any ) => {
+            await verify( token, config.get('jwt_accessTokenSecret'), async( err: any, decodificado: any ) => {
                 if ( err ) {
                     return error('No se pudo decodificar el token');
                 }
 
                 console.log(decodificado);
 
-                if ( decodificado.usuario.jwt_refreshTokenSecret !== jwt_refreshTokenSecret ) {
+                if ( decodificado.usuario.jwt_refreshTokenSecret !== config.get('jwt_accessTokenSecret') ) {
                     return error('Algo salio muy mal');
                 }
 
-                await Usuario.findOne({ _id: decodificado.usuario.id }, async ( err: any, usuarioDB: any ) => {
+                await User.findOne({ _id: decodificado.usuario.id }, async ( err: any, usuarioDB: any ) => {
                     if ( err ) {
                         return error('Error en base de datos');
                     }
@@ -389,8 +382,8 @@ export default class AuthUserService {
                         return error('No existe un usuario con estos datos');
                     }
     
-                    let password = await encriptar.passwordSeguro();
-                    const { salt, passwordHash } = await encriptar.generarPassword(password);
+                    let password = await this.encrypt.passwordSeguro();
+                    const { salt, passwordHash } = await this.encrypt.generarPassword(password);
     
                     usuarioDB.salt = salt;
                     usuarioDB.password = passwordHash;
@@ -401,7 +394,7 @@ export default class AuthUserService {
                         }
     
                         const cuerpo = await `<p>Contraseña actualizada correctamente: ${ password }<p>`;
-                        email.enviarEmail( usuarioAct.email, 'Contraseña actualizada', cuerpo);
+                        email.sendEmail( usuarioAct.email, 'Contraseña actualizada', cuerpo);
                         return response('Contraseña reestablecida con exito');
                     });
                 });

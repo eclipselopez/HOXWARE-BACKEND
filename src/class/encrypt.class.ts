@@ -38,7 +38,8 @@ export default class encryptClass {
     }
 
     public generateResetPasswordToken(userId: any) {
-        const text = JSON.stringify({ userId, valid: new Date().getTime() + config.get('auth_ttl') });
+        const jwt: any = config.get('jwt_accessTokenSecret')
+        const text = JSON.stringify({ userId, valid: new Date().getTime() + jwt });
         const cipher = crypto.createCipher(config.get('auth_algorithm'), config.get('auth_secret'));
         let ciphered = cipher.update(text, config.get('auth_inputEncoding'), config.get('auth_outputEncoding'));
         ciphered += cipher.final(config.get('auth_outputEncoding'));
@@ -124,7 +125,7 @@ export default class encryptClass {
             function guardarCaracterPosicionAleatoria(caracterPasadoParametro: any) {
                 let guardadoPosicionVacia = false;
                 let posicionArray = 0;
-
+                
                 while (guardadoPosicionVacia != true) {
                     posicionArray = generaAleatorio(0, longitudPassword);
 
@@ -231,8 +232,4 @@ export default class encryptClass {
         caracterGenerado = listaCaracteres.charAt(this.generaAleatorio(valorInferior, valorSuperior));
         return caracterGenerado;
     }
-}
-
-function generaAleatorio(arg0: number, longitudPassword: number): number {
-    throw new Error('Function not implemented.');
 }
