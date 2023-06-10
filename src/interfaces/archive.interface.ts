@@ -1,4 +1,4 @@
-export interface IArchivo {
+export interface IArchive {
     name: string,
     data: any,
     encoding: string,

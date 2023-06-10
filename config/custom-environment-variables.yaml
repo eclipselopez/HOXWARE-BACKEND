@@ -1,5 +1,5 @@
 api:
-  identifier: HOWWARE
+  identifier: HOXWARE
   port: "5002"
 
 logger:

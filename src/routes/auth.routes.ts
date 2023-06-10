@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import AuthUsuarioService from "../controllers/auth.controller";
-import IRespuesta from "../interfaces/respuesta.interface";
-import { verificaToken } from "../middlewares/autenticacion.middlewares";
+import IRespuesta from "../interfaces/response.interface";
+import { checkToken } from "../middlewares/autenticacion.middlewares";
 
 const authUsuarioRoutes = Router();
 const authUsuarioService = new AuthUsuarioService;
@@ -33,7 +33,7 @@ authUsuarioRoutes.put('/activar', async (req: Request, res: Response) => {
     });
 });
 
-authUsuarioRoutes.post('/crearUsuario', verificaToken, async ( req: Request, res: Response ) => {
+authUsuarioRoutes.post('/crearUsuario', checkToken, async ( req: Request, res: Response ) => {
     const admin = req.body.usuario;
     const usuario = req.body.noadmin;
 
@@ -49,14 +49,14 @@ authUsuarioRoutes.post('/crearUsuario', verificaToken, async ( req: Request, res
 authUsuarioRoutes.get('/:token', async( req: Request, res: Response ) => {
     let token = req.params.token;
 
-    await authUsuarioService.verificaTokenUsuario( token ).then(( respuesta ) => {
+    await authUsuarioService.checkTokenUsuario( token ).then(( respuesta ) => {
         return res.redirect('https://hoxware.tech');
     }).catch((error) => {
         return res.redirect(401, 'https://hoxware.tech');
     })
 });
 
-authUsuarioRoutes.put('/reenviarCorreo', verificaToken, async( req: Request, res: Response ) => {
+authUsuarioRoutes.put('/reenviarCorreo', checkToken, async( req: Request, res: Response ) => {
     const role = req.body.usuario.role;
     const id = req.body.id;
 

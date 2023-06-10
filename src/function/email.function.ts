@@ -5,8 +5,8 @@ import config from 'config'
 //                                  Enviar Email                                      //
 //------------------------------------------------------------------------------------//
 
-export async function enviarEmail( email: string, asunto: string, cuerpo: string ) {
-    let transporte = nodemailer.createTransport({
+export async function sendEmail( email: string, issue: string, body: string ) {
+    let transport = nodemailer.createTransport({
         host: config.get('email.smtpHost'),
         port: config.get('email.smtpPort'),
         secure: true,
@@ -16,7 +16,7 @@ export async function enviarEmail( email: string, asunto: string, cuerpo: string
         }
     });
 
-    transporte.verify( ( err, listo ) => {
+    transport.verify( ( err, resolve ) => {
         if ( err ) {
             console.log( err );
         } else {
@@ -24,14 +24,14 @@ export async function enviarEmail( email: string, asunto: string, cuerpo: string
         }
     });
 
-    let mensaje: any = {
+    let message: any = {
         from: config.get('email.email_usuario'),
         to: `${ email }`,
-        subject: `${ asunto }`,
-        html: `${ cuerpo }`
+        subject: `${ issue }`,
+        html: `${ body }`
     };
 
-    transporte.sendMail( mensaje, ( err, info ) => {
+    transport.sendMail( message, ( err, info ) => {
         if ( err ) {
             return console.log( err );
         }

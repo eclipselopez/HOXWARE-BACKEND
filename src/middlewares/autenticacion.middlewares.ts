@@ -2,11 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { verify } from 'jsonwebtoken';
 import config from 'config'
 
-export async function verificaToken( req: Request, res: Response, next: NextFunction ) {
+export async function checkToken( req: Request, res: Response, next: NextFunction ) {
     const token: any = req.headers.authorization;
-    const jwt: any = config.get('jwt.accessTokenSecret')
-    
-    await verify( token, jwt, async ( err: any, decodificado: any ) => {
+
+    await verify( token, config.get('jwt.accessTokenSecret'), async ( err: any, decoded: any ) => {
         if ( err ) {
             return res.status(401).json({
                 ok: false,
@@ -15,9 +14,8 @@ export async function verificaToken( req: Request, res: Response, next: NextFunc
             });
         }
 
-        req.body.usuario = decodificado.usuario;
+        req.body.user = decoded.user;
 
         next();
-
     });
 }

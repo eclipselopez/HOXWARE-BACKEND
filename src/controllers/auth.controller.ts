@@ -1,110 +1,72 @@
-import { IUsuario } from '../interfaces/usuario.interface';
-import Usuario from '../models/usuario.model';
-import * as encriptar from '../class/encrypt.class';
+import {IUser} from '../interfaces/user.interface';
+import User from '../models/user.model';
+import EncryptClass, * as encriptar from '../class/encrypt.class';
 import * as email from '../function/email.function';
-import IRespuesta from '../interfaces/respuesta.interface';
+import IResponse from '../interfaces/response.interface';
 import { verify } from 'jsonwebtoken';
-import ProyectoService from './proyecto.controller';
+import ProjectService from './project.controller';
+import logger from '../../lib/logger';
 
-const proyectoService = new ProyectoService;
+const projectService = new ProjectService;
 
-export default class AuthUsuarioService {
+export default class AuthUserService {
+    encrypt= new EncryptClass
 
-    async verificarSudo() {
-        let respuesta = true;
-
-        await Usuario.findOne({ role: 'SUDO' }, (err: any, sudoDB: any) => {
-            if (err) {
-                throw err;
+    createAdministrator(admin: IUser): Promise<IResponse> {
+        logger.info(`creating ${admin.role}`)
+        return new Promise((resolve, reject) => {
+            if ( admin.password ) {
+                const { salt, passwordHash } = this.encrypt.genPassword(admin.password)
+                admin.password = passwordHash
+                admin.salt = salt
             }
 
-            if (sudoDB) {
-                return respuesta = true;
-            }
-
-            return respuesta = false;
-        })
-
-        return respuesta;
-    }
-
-    async crearSudo(): Promise<string> {
-        let respuesta = 'Aun no hago nada';
-        if (await this.verificarSudo()) {
-            return respuesta = 'Usuario sudo existente en la base de datos';
-        } else {
-            const { salt, passwordHash } = await encriptar.generarPassword('Lobo48tft803@');
-            let licencia = await this.generarLicencia();
-
-            await encriptar.tokenLicencia(licencia, '999999d', async (token: any) => {
-                let sudo: IUsuario = {
-                    nombre: 'Hoxware',
-                    apellidoP: 'Security',
-                    apellidoM: 'Server',
-                    email: 'soporte@hoxware.tech',
-                    password: passwordHash,
-                    salt: salt,
-                    licencia: token,
-                    role: 'SUDO',
-                    status: 'ACTIVO',
-                    empresa: 'Hoxware'
+            User.create(admin, (err: any, adminCreated: any) => {
+                if ( err ) {
+                    logger.error(err)
+                    return reject({ ok: false, message: 'Error creating admin', response: err, code: 500 })
                 }
 
-                await Usuario.create(sudo, (err: any, sudoCreado: any) => {
-                    if (err) {
-                        console.log(err);
-                        return respuesta = JSON.stringify(err);
-                    }
-
-                    return respuesta = 'Super usuario creado con exito';
-                });
-            });
-        }
-
-        return respuesta;
-    }
-
-    async crearAdmin(usuario: IUsuario, duracion?: string): Promise<IRespuesta> {
-        let callback: IRespuesta = {
-            ok: true,
-            mensaje: 'Usuario creado con exito',
-            respuesta: null,
-            codigo: 200,
-        }
-
-        if (await this.verificaEmpresa(usuario.empresa)) {
-            return callback = await { ok: false, mensaje: 'Esta empresa ya existe', respuesta: null, codigo: 400 };
-        }
-
-        let licencia = await this.generarLicencia();
-        let exp = duracion ? duracion : '30d';
-
-        await encriptar.tokenLicencia(licencia, exp, async (token: any) => {
-            usuario.licencia = await token;
-            const { salt, passwordHash } = await encriptar.generarPassword(usuario.password);
-            usuario.password = await passwordHash;
-            usuario.salt = await salt;
-            await Usuario.create(usuario, async (err: any, usuarioCreado: any) => {
-                if (err) {
-                    return callback = await { ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 };
-                }
-                
-                await setTimeout(() => {}, 1000);
-
-                callback = await { ok: true, mensaje: 'Usuario creado con exito', respuesta: null, codigo: 200 };
-                
-                const cuerpo = await `<p> Gracias por contratar HOXWARE, su licencia por tiempo limitado es : ${licencia} y tiene una duración de ${exp} <p>`;
-                return await email.enviarEmail(usuarioCreado.email, 'Licencia Hoxware', cuerpo);
-
+                logger.info(`${admin.role} succefully created`)
+                return resolve({ ok: true, message: 'User created successfully', response: adminCreated, code: 201 })
             })
         })
-
-        return await callback;
     }
 
-    async crearUsuario(usuario: any, admin: IUsuario, callback: Function ) {
+    sudoVerify(): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            User.findOne({ role: 'sudo'}, ( err: any, sudoDB: any ) => {
+                if ( err ) {
+                    logger.error(err)
+                    return reject(false)
+                }
+
+                if(!sudoDB) {
+                    let admin: IUser = {
+                        name: 'Hoxware',
+                        lastName: 'Security',
+                        secondLastName: 'Server',
+                        email: 'soporte@hoxware.tech',
+                        password: 'lobo48tft8030',
+                        salt: salt,
+                        license: token,
+                        role: 'SUDO',
+                        status: 'ACTIVO',
+                        company: 'Hoxware'
+                    }
+
+                    this.createAdministrator(admin)
+                    return resolve(true)
+                } else {
+                    return resolve(true)
+                }
+            })
+        })
+    }
+
+    async crearUsuario(usuario: any, admin: IUser, callback: Function ) {
         if ( !admin.id ) {
-            return callback({ ok: false, mensaje: 'No hay datos de admin', respuesta: null, codigo: 400 });
+            return callback({ ok: false, message: 'No hay datos de admin', response: null, code: 400 });
         }
 
         let licencia = await this.obtenerLicencia( admin.id );
@@ -120,14 +82,14 @@ export default class AuthUsuarioService {
 
         Usuario.create( usuario, async( err: any, usuarioCreado: any ) => {
             if  ( err ) {
-                return callback({ ok: false, mensaje: 'Error error en base de datos', respuesta: err, codigo: 500 });
+                return callback({ ok: false, message: 'Error error en base de datos', response: err, code: 500 });
             }
 
             encriptar.tokenEmail(usuarioCreado, async ( tokenGenerado: any ) => {
                 const cuerpo = await `<p> Esta es tu contraseña para ingresar a la plataforma Hoxware : ${password} antes de ingresar, activa tu usuario confirmando tu correo con el siguiente link ${serverName}auth/${tokenGenerado} <p>`;
 
                 await email.enviarEmail(usuarioCreado.email, 'Alta de usuario nuevo', cuerpo);
-                return callback({ ok: true, mensaje: 'Usuario creado con exito', respuesta: usuarioCreado, codigo: 200 });
+                return callback({ ok: true, message: 'Usuario creado con exito', response: usuarioCreado, code: 200 });
             })
         })
     }
@@ -136,28 +98,28 @@ export default class AuthUsuarioService {
 
         await Usuario.findOne( { email: email }, async(err: any, usuarioDB: any ) => {
             if ( err ) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
+                return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
 
             if ( !usuarioDB ) {
-                return callback({ ok: false, mensaje: 'Datos incorrectos', respuesta: null, codigo: 400 });
+                return callback({ ok: false, message: 'Datos incorrectos', response: null, code: 400 });
             }
 
             /* if ( await this.verificarLicencia( usuarioDB.licencia ) ) {
-                return callback({ ok: false, mensaje: 'Licencia expirada o incorrecta', respuesta: null, codigo: 400 });
+                return callback({ ok: false, message: 'Licencia expirada o incorrecta', response: null, code: 400 });
             } */
 
             const passwordHash = await encriptar.sha512(password, usuarioDB.salt);
 
             if ( usuarioDB.password !== passwordHash.passwordHash ) {
-                return callback({ ok: false, mensaje: 'Datos incorrectos', respuesta: err, codigo: 400 });
+                return callback({ ok: false, message: 'Datos incorrectos', response: err, code: 400 });
             }
             
             if ( usuarioDB.status == 'INACTIVO' ) {
                 if ( usuarioDB.role !== 'ADMIN_ROLE' ) {
-                    return callback({ ok: false, mensaje: 'Usuario inactivo, por favor verifica tu email', respuesta: null, codigo: 403 });
+                    return callback({ ok: false, message: 'Usuario inactivo, por favor verifica tu email', response: null, code: 403 });
                 } else {
-                    return callback({ ok: false, mensaje: 'Usuario inactivo', respuesta: err, codigo: 401 });
+                    return callback({ ok: false, message: 'Usuario inactivo', response: err, code: 401 });
                 }
             }
 
@@ -171,13 +133,13 @@ export default class AuthUsuarioService {
                 role: usuarioDB.role
             }
 
-            await proyectoService.obtenerProyectosId( usuarioDB.empresa, usuarioDB._id, async ( respuestaP: IRespuesta ) => {
-                if ( respuestaP.codigo === 200 ) {
-                    await encriptar.generarToken( usuarioFront, async( respuestaT: any ) => {
-                        return callback({ ok: true, mensaje: 'Usuario logueado con exito', respuesta: null, codigo: 200, token: respuestaT, twoAuth: usuarioDB.twoAuth, proyectos: respuestaP.respuesta });
+            await proyectoService.obtenerProyectosId( usuarioDB.empresa, usuarioDB._id, async ( responseP: IResponse ) => {
+                if ( responseP.code === 200 ) {
+                    await encriptar.generarToken( usuarioFront, async( responseT: any ) => {
+                        return callback({ ok: true, message: 'Usuario logueado con exito', response: null, code: 200, token: responseT, twoAuth: usuarioDB.twoAuth, proyectos: responseP.response });
                     });
                 } else {
-                    return callback(respuestaP);
+                    return callback(responseP);
                 }
             })
 
@@ -187,11 +149,11 @@ export default class AuthUsuarioService {
     async loginMovil( email: string, password: string, callback: Function ) {
         await Usuario.findOne({ email: email }, async ( err: any, usuarioDB: any ) => {
             if ( err ) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
+                return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
 
             if ( usuarioDB.status == 'INACTIVO' ) {
-                return callback({ ok: false, mensaje: 'Usuario inactivo', respuesta: null, codigo: 400 });
+                return callback({ ok: false, message: 'Usuario inactivo', response: null, code: 400 });
             }
 
             const usuarioFront = {
@@ -204,8 +166,8 @@ export default class AuthUsuarioService {
                 role: usuarioDB.role
             }
 
-            encriptar.generarToken( usuarioFront, async( respuesta: any ) => {
-                return callback({ ok: true, mensaje: 'Usuario logueado con exito', respuesta: null, codigo: 200, token: respuesta, twoAuth: usuarioDB.twoAuth });
+            encriptar.generarToken( usuarioFront, async( response: any ) => {
+                return callback({ ok: true, message: 'Usuario logueado con exito', response: null, code: 200, token: response, twoAuth: usuarioDB.twoAuth });
             });
         });
     }
@@ -213,33 +175,33 @@ export default class AuthUsuarioService {
     async activarLicencia(email: string, licencia: string, callback: Function) {
         await Usuario.findOne({ email: email }, async (err: any, usuarioDB: any) => {
             if (err) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
+                return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
 
             if ( !usuarioDB ) {
-                return callback({ ok: false, mensaje: 'Datos incorrectos', respuesta: null, codigo: 404 });
+                return callback({ ok: false, message: 'Datos incorrectos', response: null, code: 404 });
             }
 
             if ( usuarioDB.role != 'ADMIN_ROLE' ) {
-                return callback({ ok: false, mensaje: 'Usuario inactivo, por favor verifica tu correo!', respuesta: null, codigo: 403 });
+                return callback({ ok: false, message: 'Usuario inactivo, por favor verifica tu correo!', response: null, code: 403 });
             }
 
             await verify( usuarioDB.licencia, jwt_accessTokenSecret, async ( err: any, decodificado: any ) => {
                 if ( err ) {
-                    return callback({ ok: false, mensaje: 'Error en licencia', respuesta: err, codigo: 400 });
+                    return callback({ ok: false, message: 'Error en licencia', response: err, code: 400 });
                 }
 
                 if ( decodificado.licencia !== licencia ) {
-                    return callback({ ok: false, mensaje: 'Licencia incorrecta', respuesta: null, codigo: 401 });
+                    return callback({ ok: false, message: 'Licencia incorrecta', response: null, code: 401 });
                 }
 
                 usuarioDB.status = 'ACTIVO';
                 usuarioDB.save((err: any, usuarioAct: any ) => {
                     if ( err ) {
-                        return callback({ ok: false, mensaje: 'Error al actualizar usuario', respuesta: err, codigo: 500 });
+                        return callback({ ok: false, message: 'Error al actualizar usuario', response: err, code: 500 });
                     }
 
-                    return callback({ ok: true, mensaje: 'Licencia activada', respuesta: null, codigo: 200 });
+                    return callback({ ok: true, message: 'Licencia activada', response: null, code: 200 });
                 })
             });
         });
@@ -278,29 +240,29 @@ export default class AuthUsuarioService {
         return licencia;
     }
 
-    async generarCodigo(): Promise<number> {
-        let codigo = 111111;
+    async generarcode(): Promise<number> {
+        let code = 111111;
 
         let min: number = 111111;
         let max: number = 999999;
 
-        return codigo = await Math.random() * (max - min) + min;
+        return code = await Math.random() * (max - min) + min;
     }
 
     async verificarLicencia( licencia: string ): Promise<boolean> {
-        let respuesta = true;
+        let response = true;
 
         await verify(licencia, jwt_accessTokenSecret, async(err: any, decodificado: any) => {
             if ( err ) {
-                return respuesta = await true;
+                return response = await true;
             }
 
             if ( decodificado ) {
-                return respuesta = await false;
+                return response = await false;
             }
         });
 
-        return await respuesta;
+        return await response;
     }
 
     async obtenerLicencia( id: string ): Promise<string> {
@@ -342,11 +304,11 @@ export default class AuthUsuarioService {
     async reenviarCorreoAct( idUsuario: string, callback: Function ) {
         Usuario.findOne({ _id: idUsuario }, async ( err: any, usuarioDB: any ) => {
             if ( err ) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
+                return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
 
             if ( !usuarioDB ) {
-                return callback({ ok: false, mensaje: 'Ocurrio un error', respuesta: null, codigo: 404 });
+                return callback({ ok: false, message: 'Ocurrio un error', response: null, code: 404 });
             }
 
             let password = await encriptar.passwordSeguro();
@@ -358,7 +320,7 @@ export default class AuthUsuarioService {
 
             usuarioDB.save( async ( err: any, usuarioACT: any ) => {
                 if ( err ) {
-                    return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
+                    return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
                 }
                 usuarioDB.password.remove;
                 usuarioDB.salt.remove;
@@ -367,7 +329,7 @@ export default class AuthUsuarioService {
                     const cuerpo = await `<p> Esta es tu contraseña para ingresar a la plataforma Hoxware : ${password} antes de ingresar, activa tu usuario confirmando tu correo con el siguiente link ${serverName}auth/${tokenGenerado} <p>`;
     
                     await email.enviarEmail(usuarioDB.email, 'Alta de usuario nuevo', cuerpo);
-                    return callback({ ok: true, mensaje: 'Usuario actualizado con exito', respuesta: usuarioDB, codigo: 200 });
+                    return callback({ ok: true, message: 'Usuario actualizado con exito', response: usuarioDB, code: 200 });
                 })
 
             })
@@ -378,11 +340,11 @@ export default class AuthUsuarioService {
     async resetPassword( emailUsuario: string, callback: Function ) {
         Usuario.findOne( { email: emailUsuario }, async ( err: any, usuarioDB: any ) => {
             if ( err ) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
+                return callback({ ok: false, message: 'Error en base de datos', response: err, code: 500 });
             }
 
             if ( !usuarioDB ) {
-                return callback({ ok: false, mensaje: 'Datos incorrectos', respuesta: null, codigo: 404 });
+                return callback({ ok: false, message: 'Datos incorrectos', response: null, code: 404 });
             }
 
             let id = usuarioDB._id;
@@ -396,14 +358,14 @@ export default class AuthUsuarioService {
                 const cuerpo = await `<p>Haz solicitado reestablecer tu contraseña, si no fuiste tu haz caso omiso, de lo contrario da click en el siguiente link: ${serverName}auth/resetPwd/${ tokenGenerado } <p>`;
                 
                 await email.enviarEmail(usuarioDB.email, 'Solicitud de reestablecimiento de contraseña', cuerpo);
-                return callback({ ok: true, mensaje: 'Solicitud de reestablecimiento de password enviada', respuesta: null, codigo: 200 });
+                return callback({ ok: true, message: 'Solicitud de reestablecimiento de password enviada', response: null, code: 200 });
             });
 
         });
     }
 
     async verficarResetPassword( token: string ): Promise<any> {
-        return new Promise( async( respuesta, error ) => {
+        return new Promise( async( response, error ) => {
             await verify( token, jwt_accessTokenSecret, async( err: any, decodificado: any ) => {
                 if ( err ) {
                     return error('No se pudo decodificar el token');
@@ -437,7 +399,7 @@ export default class AuthUsuarioService {
     
                         const cuerpo = await `<p>Contraseña actualizada correctamente: ${ password }<p>`;
                         email.enviarEmail( usuarioAct.email, 'Contraseña actualizada', cuerpo);
-                        return respuesta('Contraseña reestablecida con exito');
+                        return response('Contraseña reestablecida con exito');
                     });
                 });
             })

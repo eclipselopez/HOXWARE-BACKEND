@@ -1,122 +1,119 @@
-import { IArchivo } from "../interfaces/archivo.interface";
+import { IArchive } from "../interfaces/archive.interface";
 import { IUrl } from "../interfaces/url.interface";
 import Url from '../models/url.model';
 import path from 'path';
 import fs from 'fs';
+import IResponse from "../interfaces/response.interface";
 
 export default class UrlService {
     constructor() {}
 
-    async crearUrls( urls: Array<IUrl>, empresa: string, proyecto: string, callback: Function ) {
-        let urlsFormateada: IUrl[] = [];
-
-        for( let url of urls ) {
-            url.proyecto = proyecto;
-            url.empresa = empresa;
-            let fecha = url.fechaUltimaRevision.split('/');
-
-            let fechaFormateada = new Date(fecha[0]);
-
-            url.fechaUltimaRevision = fechaFormateada.toString();
-
-            await urlsFormateada.push(url);
-        }
-
-        Url.insertMany(urlsFormateada,{}, ( err: any, urlsDB: any ) => {
-            if ( err ) {
-                return callback({ ok: false, mensaje: 'Error al insertar registros', respuesta: err, codigo: 500 });
-            }
-
-            return callback({ ok: true, mensaje: 'Urls creadas con exito', respuesta: urlsDB, codigo: 200 });
-        });
-    }
-
-    async crearUrl( url: IUrl, empresa: string, proyecto: string, callback: Function ) {
-        url.proyecto = proyecto;
-        url.empresa = empresa;
-
-        Url.create( url, ( err: any, urlDB: any ) => {
-            if ( err ) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
-            }
-
-            return callback({ ok: true, mensaje: 'Url creada con exito', respuesta: urlDB, codigo: 200 });
-        });
-    }
-
-    async listar( empresa: string, proyecto: string, callback: Function ) {
-        Url.find({ $and: [ { empresa: empresa }, { proyecto: proyecto } ] }, ( err: any, urlsDB: any ) => {
-            if ( err ) {
-                return callback({ ok: false, mensaje: 'Error en base de datos', respuesta: err, codigo: 500 });
-            }
-
-            /* for( let i = 0; urlsDB.length > i; i++ ) {
-                urlsDB[i].historial = null;
-            } */
-
-            return callback({ ok: true, mensaje: 'Urls listadas correctamente', respuesta: urlsDB, codigo: 200 });
-        });
-    }
-
-    async actualizar( url: IUrl, id: string, empresa: string, proyecto: string, callback: Function ) {
-        Url.findById(id, (err: Error, urlId: any) => {
+    urlsCreate(urls: Array<IUrl>, company: string, proyect: string): Promise<IResponse> {
+        return new Promise(async(resolve, reject) => {
+            let formattedUrls: IUrl[] = [];
             
-            if(err){
-                return callback({ok:false, codigo:500, mensaje: 'Error en base de datos', error:err});
+            for(let url of urls) {
+                url.proyect = proyect;
+                url.company = company;
+                let fecha = url.lastRevisionDate.split('/');
+                let formattedDate = new Date(fecha[0]);
+                url.lastRevisionDate = formattedDate.toString();
+    
+                await formattedUrls.push(url);
             }
-            if (!urlId){
-                return callback({ok:false,codigo:214, mensaje: 'No se encontró url con ese ID'});
-            }
-            if (!id){
-                return callback({ok:false,codigo:400, mensaje: 'Debes insertar ID'});
-            }
-            
-            url.empresa = empresa;
-            url.proyecto = proyecto;
-            
-            if( url.rondaValidacion ) {
-                if( url.rondaValidacion < urlId.rondaValidacion ) {
-                    return callback({ ok: false, mensaje: 'No estan permitidos los downgrade', respuesta: null, codigo: 400 });
+    
+            Url.insertMany(formattedUrls,{}, (err: any, urlsDB: any) => {
+                if (err) {
+                    return reject({ ok: false, message: 'Error inserting records', response: err, code: 500 });
                 }
-                
-                if ( url.rondaValidacion !== urlId.rondaValidacion ) {
-                    url.historial = [];
-                    for(let i = 0; i<urlId.historial.length; i++) {
-                        url.historial.push(urlId.historial[i]);
-                    }
-                    urlId.historial = null;
-                    url.historial.push( urlId );
-                }
-                
-                Url.updateOne({ _id: urlId._id }, { $set: url }, {}, ( err: any, urlAct: any ) => {
-                    console.log(url);
-                    if ( err ) {
-                        return callback({ ok: false, mensaje: 'Error al actualizar URL', respuesta: err, codigo: 500 });
-                    }
-
-                    return callback({ ok: true, mensaje: 'Url actualizada con exito', respuesta: null, codigo: 200 });
-                });
-            }
-
-            //return callback({ ok: true, mensaje: 'Url encontrada', respuesta: urlId, codigo: 200});
+                return resolve({ ok: true, message: 'Urls created successfully', response: urlsDB, code: 200 });
+            });
         })
     }
 
-    async guardarCsvTemporal( archivo: IArchivo ) {
-        return new Promise(async ( respuesta, error ) => {
-            const temp = await path.resolve( __dirname, '../temp');
+    urlCreate(url: IUrl, company: string, proyect: string): Promise<IResponse> {
+        return new Promise(async(resolve, reject) => {
+            url.proyect = proyect;
+            url.company = company;
 
-            const existe = await fs.existsSync( temp );
+            Url.create(url, (err: any, urlDB: any) => {
+                if (err) {
+                    return reject({ ok: false, message: 'Database Error', response: err, code: 500 });
+                }
+                return resolve({ ok: true, message: 'Url created successfully', response: urlDB, code: 200 });
+            });
+        })
+    }
+
+    urlList(company: string, proyect: string): Promise<IResponse> {
+        return new Promise(async(resolve, reject) => {
+            Url.find({ $and: [ { company: company }, { proyect: proyect } ] }, (err: any, urlsDB: any) => {
+                if ( err ) {
+                    return reject({ ok: false, message: 'Database Error', response: err, code: 500 });
+                }
+
+                /* for( let i = 0; urlsDB.length > i; i++ ) {
+                    urlsDB[i].history = null;
+                } */
+
+                return resolve({ ok: true, message: 'Urls listed correctly', response: urlsDB, code: 200 });
+            });
+        })
+    }
+
+    urlUpdate(url: IUrl, id: string, company: string, proyect: string): Promise<IResponse> {
+        return new Promise(async(resolve, reject) => {
+            Url.findById(id, (err: Error, urlId: any) => {
+                url.company = company;
+                url.proyect = proyect;
+                
+                if(err){
+                    return reject({ ok:false, message: 'Database Error', error:err, code:500 });
+                }
+                if (!urlId){
+                    return reject({ ok:false, message: 'No url found with that ID', code:214 });
+                }
+                if (!id){
+                    return reject({ ok:false, message: 'You must insert ID', code:400 });
+                }
+                if(url.roundValidation) {
+                    if(url.roundValidation < urlId.roundValidation) {
+                        return reject({ ok: false, message: 'Downgrades are not allowed', response: null, code: 400 });
+                    }
+                    if (url.roundValidation !== urlId.roundValidation) {
+                        url.history = [];
+                        for(let i = 0; i<urlId.history.length; i++) {
+                            url.history.push(urlId.history[i]);
+                        }
+                        urlId.history = null;
+                        url.history.push(urlId);
+                    }
+
+                    Url.updateOne({ _id: urlId._id }, { $set: url }, {}, (err: any, urlAct: any) => {
+                        if (err) {
+                            return reject({ ok: false, message: 'Failed to update URL', response: err, code: 500 });
+                        }
+                        return resolve({ ok: true, message: 'Url updated successfully', response: null, code: 200 });
+                    });
+                }
+            })
+        })
+    }
+
+    csvSaveTemporary(archive: IArchive) {
+        return new Promise(async(resolve, reject) => {
+            const temp = await path.resolve( __dirname, '../temp');
+            const exists = await fs.existsSync( temp );
         
-            if ( !existe ) {
+            if ( !exists ) {
                 fs.mkdirSync( temp );
             }
 
-            archivo.mv(`${temp}/archivo.csv`, ( err: any ) => {
+            archive.mv(`${temp}/archive.csv`, ( err: any ) => {
                 if ( err ) {
-                    return error( err );
+                    return reject( err );
                 } else {
-                    return respuesta('ok');
+                    return resolve('ok');
                 }
             })
         })
