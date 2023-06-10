@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import ProjectService from "../controllers/project.controller";
-import { checkToken } from "../middlewares/autenticacion.middlewares";
+import { checkToken } from "../middlewares/autentication.middlewares";
 
 const projectRoutes = Router();
 const projectCtrl = new ProjectService;

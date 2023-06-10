@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import UserService from "../controllers/user.controller";
-import { checkToken } from "../middlewares/autenticacion.middlewares";
+import { checkToken } from "../middlewares/autentication.middlewares";
 
 const userRoutes = Router();
 const userCtrl = new UserService;

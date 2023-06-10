@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import AuthUsuarioService from "../controllers/auth.controller";
 import IRespuesta from "../interfaces/response.interface";
-import { checkToken } from "../middlewares/autenticacion.middlewares";
+import { checkToken } from "../middlewares/autentication.middlewares";
 
 const authUsuarioRoutes = Router();
 const authUsuarioService = new AuthUsuarioService;

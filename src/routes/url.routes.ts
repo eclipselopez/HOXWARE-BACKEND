@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import UrlService from '../controllers/url.controller';
 import { IArchive } from '../interfaces/archive.interface';
-import { checkToken } from '../middlewares/autenticacion.middlewares';
+import { checkToken } from '../middlewares/autentication.middlewares';
 import CSVToJSON from 'csvtojson';
 import path from 'path';
 

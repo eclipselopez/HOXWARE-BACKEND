@@ -1,6 +1,6 @@
 import {IUser} from '../interfaces/user.interface';
 import User from '../models/user.model';
-import EncryptClass, * as encriptar from '../class/encrypt.class';
+import encryptClass, * as encriptar from '../class/encrypt.class';
 import * as email from '../function/email.function';
 import IResponse from '../interfaces/response.interface';
 import { verify } from 'jsonwebtoken';
@@ -10,13 +10,13 @@ import logger from '../../lib/logger';
 const projectService = new ProjectService;
 
 export default class AuthUserService {
-    encrypt= new EncryptClass
+    encrypt= new encryptClass
 
     createAdministrator(admin: IUser): Promise<IResponse> {
         logger.info(`creating ${admin.role}`)
         return new Promise((resolve, reject) => {
             if ( admin.password ) {
-                const { salt, passwordHash } = this.encrypt.genPassword(admin.password)
+                const { salt, passwordHash } = this.encrypt.generarPassword(admin.password)
                 admin.password = passwordHash
                 admin.salt = salt
             }
@@ -42,12 +42,15 @@ export default class AuthUserService {
                 }
 
                 if(!sudoDB) {
+                    const { salt, passwordHash } = this.encrypt.generarPassword('Lobo48tft803@');
+                    const { token } = this.encrypt.generarToken
+
                     let admin: IUser = {
                         name: 'Hoxware',
                         lastName: 'Security',
                         secondLastName: 'Server',
                         email: 'soporte@hoxware.tech',
-                        password: 'lobo48tft8030',
+                        password: passwordHash,
                         salt: salt,
                         license: token,
                         role: 'SUDO',
